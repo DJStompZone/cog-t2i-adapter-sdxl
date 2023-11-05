@@ -13,16 +13,16 @@ from diffusers import (
 from utils import SCHEDULERS, install_t2i_adapter_cache
 
 
-os.environ["HF_HOME"] = os.environ["HUGGINGFACE_HUB_CACHE"] = "/src/hf-cache"
+_CACHE = os.environ["HF_HOME"] = os.environ["HUGGINGFACE_HUB_CACHE"] = "/src/hf-cache"
 
 # Available options: "openpose", "lineart", "canny", "sketch", "depth-midas"
-MODEL_TYPE = "depth-midas" 
+MODEL_TYPE = "canny" 
 
-MODEL_BASE_CACHE = "/src/hf-cache/sdxl-1.0"
-MODEL_ADAPTER_CACHE = f"/src/hf-cache/t2-adapter-{MODEL_TYPE}-sdxl-1.0"
-MODEL_VAE_CACHE = "/src/hf-cache/sdxl-vae-fp16-fix"
-MODEL_SCHEDULER_CACHE = "/src/hf-cache/scheduler"
-MODEL_ANNOTATOR_CACHE = f"/src/hf-cache/annotator/{MODEL_TYPE}"
+MODEL_BASE_CACHE = f"{_CACHE}/sdxl-1.0"
+MODEL_ADAPTER_CACHE = f"{_CACHE}/t2-adapter-{MODEL_TYPE}-sdxl-1.0"
+MODEL_VAE_CACHE = f"{_CACHE}/sdxl-vae-fp16-fix"
+MODEL_SCHEDULER_CACHE = f"{_CACHE}/scheduler"
+MODEL_ANNOTATOR_CACHE = f"{_CACHE}/annotator/{MODEL_TYPE}"
 
 install_t2i_adapter_cache(
     model_type=MODEL_TYPE,
@@ -87,23 +87,23 @@ class Predictor(BasePredictor):
         image: Path = Input(description="Input image"),
         prompt: str = Input(
             description="Input prompt",
-            default="A photo of a room, 4k photo, highly detailed",
+            default="A samoyed wearing a top hat, 4k photo, highly detailed",
         ),
         negative_prompt: str = Input(
             description="Specify things to not see in the output",
-            default= "anime, cartoon, graphic, text, painting, crayon, graphite, abstract, glitch, deformed, mutated, ugly, disfigured",
+            default= "anime, cartoon, painting, crayon, graphite, abstract, glitch, deformed, mutated, ugly, disfigured, extra digits, amateur, blurry, wrong",
         ),
         num_inference_steps: int = Input(
-            description="Number of diffusion steps", ge=0, le=100, default=30
+            description="Number of diffusion steps", ge=10, le=200, default=50
         ),
         adapter_conditioning_scale: float = Input(
-            description="Conditioning scale", ge=0, le=5.0, default=1.0
+            description="Input conditioning strength", ge=0, le=1.0, default=1.0
         ),
         adapter_conditioning_factor: float = Input(
-            description="Factor to scale image by", ge=0, le=1.0, default=1.0
+            description="Percentage of steps to apply input conditioning", ge=0, le=1.0, default=1.0
         ),
         guidance_scale: float = Input(
-            description="Guidance scale to match the prompt", ge=0, le=10.0, default=7.5
+            description="Prompt guidance strength", ge=0, le=35.0, default=7.5
         ),
         num_samples: int = Input(
             description="Number of outputs to generate", ge=1, le=4, default=1
@@ -111,7 +111,7 @@ class Predictor(BasePredictor):
         scheduler: str = Input(
             description="Which scheduler to use",
             choices=SCHEDULERS.keys(),
-            default="K_EULER_ANCESTRAL",
+            default="K_EULER",
         )
     ) -> List[Path]:
         
@@ -125,7 +125,7 @@ class Predictor(BasePredictor):
         if MODEL_TYPE == "lineart":
             image = self.annotator(image, detect_resolution=384, image_resolution=1024)
         elif MODEL_TYPE == "canny":
-            image = self.annotator(image, detect_resolution=384, image_resolution=1024)
+            image = self.annotator(image, detect_resolution=1024, image_resolution=1024)
         elif MODEL_TYPE == "sketch":
             image = self.annotator(image, detect_resolution=1024, image_resolution=1024, apply_filter=True)
         elif MODEL_TYPE == "openpose":
